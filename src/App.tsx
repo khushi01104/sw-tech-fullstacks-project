@@ -76,8 +76,9 @@ async function apiFetch(endpoint: string, options: any = {}) {
     } else {
       // Not JSON, likely an HTML 404/500 page from the server or proxy
       const text = await res.text();
-      console.error(`Non-JSON response from ${url}:`, text.substring(0, 200));
-      throw new Error(`Server returned non-JSON response (${res.status}) for ${url}. Please check if the server is running correctly.`);
+      const snippet = text.substring(0, 300).replace(/<[^>]*>/g, ' ').trim();
+      console.error(`Non-JSON response from ${url}:`, text.substring(0, 500));
+      throw new Error(`Server Error (${res.status}): ${snippet || 'Non-JSON response'}. Please ensure your Vercel environment variables are set.`);
     }
   } catch (err: any) {
     console.error(`API Fetch Error (${url}):`, err.message);

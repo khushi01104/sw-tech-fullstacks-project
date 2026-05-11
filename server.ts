@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import cors from "cors";
 import bcrypt from "bcryptjs";
@@ -31,6 +30,14 @@ const PORT = 3000;
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Path logging to help debug Vercel routing
+app.use((req, res, next) => {
+  if (req.url.startsWith("/api")) {
+    console.log(`[API Request] ${req.method} ${req.url}`);
+  }
+  next();
+});
 
 // --- Schemas ---
 const RegisterSchema = z.object({
@@ -67,6 +74,9 @@ const logger = (req: express.Request, res: express.Response, next: express.NextF
 };
 
 app.use(logger);
+
+// Add a simple health check before the router
+app.get("/api/ping", (req, res) => res.json({ message: "pong" }));
 
 const apiRouter = express.Router();
 
@@ -160,8 +170,11 @@ apiRouter.post("/auth/register", async (req, res) => {
 });
 
 apiRouter.post("/auth/login", async (req, res) => {
-  console.log("Login attempt:", req.body.email);
+  console.log("Login attempt for:", req.body?.email);
   try {
+    if (!req.body || !req.body.email) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
     const supabase = getSupabase();
     const { email, password } = req.body;
     const { data: userData, error } = await supabase
@@ -171,12 +184,14 @@ apiRouter.post("/auth/login", async (req, res) => {
       .single();
 
     if (error || !userData) {
+      console.warn("Login failed: User not found or Supabase error", error?.message);
       return res.status(400).json({ error: "Invalid credentials" });
     }
 
     const isValid = await bcrypt.compare(password, userData.password);
 
     if (!isValid) {
+      console.warn("Login failed: Invalid password for", email);
       return res.status(400).json({ error: "Invalid credentials" });
     }
 
@@ -188,7 +203,11 @@ apiRouter.post("/auth/login", async (req, res) => {
 
     res.json({ token, user: { name: userData.name, email: userData.email, role: userData.role } });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error("Login Route Exception:", error);
+    res.status(500).json({ 
+      error: "Internal Server Error", 
+      message: error.message || "An unexpected error occurred during login" 
+    });
   }
 });
 
@@ -369,8 +388,16 @@ apiRouter.get("/health", (req, res) => {
 // --- Middleware Setup ---
 // Register API routes
 app.use("/api", apiRouter);
-// Also mount at / to handle cases where the /api prefix might be stripped by the deployment platform
-app.use("/", apiRouter);
+
+// Global Error Handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("UNCAUGHT ERROR:", err);
+  res.status(500).json({ 
+    error: "Internal Server Error", 
+    message: err.message,
+    path: req.path
+  });
+});
 
 // API 404 handler
 app.all("/api/*", (req, res) => {
@@ -407,6 +434,7 @@ async function startServer() {
   await seedAdmin();
 
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -426,6 +454,13 @@ async function startServer() {
 }
 
 export default app;
+
+// In Vercel, we don't start the server with app.listen, 
+// but we still want to run initialization logic if possible.
+if (process.env.VERCEL) {
+  testConnection().catch(err => console.error("Vercel Init: testConnection failed", err));
+  seedAdmin().catch(err => console.error("Vercel Init: seedAdmin failed", err));
+}
 
 // Only start the server and listen on a port if we're NOT on Vercel
 if (!process.env.VERCEL) {
