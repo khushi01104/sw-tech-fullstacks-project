@@ -61,6 +61,11 @@ const QuoteSchema = z.object({
 });
 
 // --- Auth Middleware ---
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
 const authenticateToken = (req: any, res: any, next: any) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -349,6 +354,14 @@ app.delete("/api/admin/newsletter/:id", authenticateToken, isAdmin, async (req, 
   }
 });
 
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    env: process.env.NODE_ENV || "development",
+    time: new Date().toISOString()
+  });
+});
+
 // --- Frontend Integration ---
 async function testConnection() {
   try {
@@ -372,6 +385,12 @@ async function startServer() {
   console.log(`Starting server in ${process.env.NODE_ENV || 'development'} mode`);
   await testConnection();
   await seedAdmin();
+
+  // API 404 handler - catch missing API routes before they hit the SPA fallback
+  app.use("/api/*", (req, res) => {
+    res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
+  });
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },

@@ -63,15 +63,26 @@ async function apiFetch(endpoint: string, options: any = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
-  const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
-  let data;
+  
+  const url = `${API_BASE}${endpoint}`;
   try {
-    data = await res.json();
-  } catch (e) {
-    throw new Error(`Server returned non-JSON response (${res.status})`);
+    const res = await fetch(url, { ...options, headers });
+    const contentType = res.headers.get("content-type");
+    
+    if (contentType && contentType.includes("application/json")) {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || `Request failed with status ${res.status}`);
+      return data;
+    } else {
+      // Not JSON, likely an HTML 404/500 page from the server or proxy
+      const text = await res.text();
+      console.error(`Non-JSON response from ${url}:`, text.substring(0, 200));
+      throw new Error(`Server returned non-JSON response (${res.status}) for ${url}. Please check if the server is running correctly.`);
+    }
+  } catch (err: any) {
+    console.error(`API Fetch Error (${url}):`, err.message);
+    throw err;
   }
-  if (!res.ok) throw new Error(data.error || data.message || "Something went wrong");
-  return data;
 }
 
 // --- Components ---
