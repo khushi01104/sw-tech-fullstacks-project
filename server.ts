@@ -125,7 +125,7 @@ async function seedAdmin() {
 }
 
 // --- Routes ---
-// 1. Auth
+// 1. Auth ---
 apiRouter.post("/auth/register", async (req, res) => {
   console.log("Registering user:", req.body.email);
   try {
@@ -196,7 +196,7 @@ apiRouter.get("/auth/profile", authenticateToken, (req: any, res) => {
   res.json(req.user);
 });
 
-// 2. Contact Form
+// 2. Contact Form ---
 apiRouter.post("/contact", async (req, res) => {
   console.log("Contact form submission:", req.body.email);
   try {
@@ -210,7 +210,7 @@ apiRouter.post("/contact", async (req, res) => {
   }
 });
 
-// 3. Newsletter
+// 3. Newsletter ---
 apiRouter.post("/newsletter/subscribe", async (req, res) => {
   try {
     const supabase = getSupabase();
@@ -233,7 +233,7 @@ apiRouter.post("/newsletter/subscribe", async (req, res) => {
   }
 });
 
-// 4. Quotes
+// 4. Quotes ---
 apiRouter.post("/quote", async (req, res) => {
   try {
     const supabase = getSupabase();
@@ -253,7 +253,7 @@ apiRouter.post("/quote", async (req, res) => {
   }
 });
 
-// 5. Admin Routes
+// 5. Admin Routes ---
 apiRouter.get("/admin/contacts", authenticateToken, isAdmin, async (req, res) => {
   try {
     const supabase = getSupabase();
@@ -366,7 +366,21 @@ apiRouter.get("/health", (req, res) => {
   });
 });
 
+// --- Middleware Setup ---
+// Register API routes
 app.use("/api", apiRouter);
+// Also mount at / to handle cases where the /api prefix might be stripped by the deployment platform
+app.use("/", apiRouter);
+
+// API 404 handler
+app.all("/api/*", (req, res) => {
+  console.error(`API 404: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ 
+    error: "API endpoint not found", 
+    method: req.method, 
+    path: req.originalUrl 
+  });
+});
 
 // --- Frontend Integration ---
 async function testConnection() {
@@ -392,11 +406,6 @@ async function startServer() {
   await testConnection();
   await seedAdmin();
 
-  // API 404 handler - catch missing API routes before they hit the SPA fallback
-  app.all("/api/*", (req, res) => {
-    res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
-  });
-
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -416,7 +425,15 @@ async function startServer() {
   });
 }
 
-startServer().catch(err => {
-  console.error("CRITICAL: Failed to start server:", err);
-  process.exit(1);
-});
+export default app;
+
+// Only start the server and listen on a port if we're NOT on Vercel
+if (!process.env.VERCEL) {
+  startServer().catch(err => {
+    console.error("CRITICAL: Failed to start server:", err);
+    if (process.env.NODE_ENV !== "production") {
+      process.exit(1);
+    }
+  });
+}
+
