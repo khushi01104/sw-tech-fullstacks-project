@@ -61,10 +61,14 @@ const QuoteSchema = z.object({
 });
 
 // --- Auth Middleware ---
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+const logger = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.log(`${new Date().toISOString()} - [${req.method}] ${req.url}`);
   next();
-});
+};
+
+app.use(logger);
+
+const apiRouter = express.Router();
 
 const authenticateToken = (req: any, res: any, next: any) => {
   const authHeader = req.headers['authorization'];
@@ -122,7 +126,7 @@ async function seedAdmin() {
 
 // --- Routes ---
 // 1. Auth
-app.post("/api/auth/register", async (req, res) => {
+apiRouter.post("/auth/register", async (req, res) => {
   console.log("Registering user:", req.body.email);
   try {
     const supabase = getSupabase();
@@ -155,7 +159,7 @@ app.post("/api/auth/register", async (req, res) => {
   }
 });
 
-app.post("/api/auth/login", async (req, res) => {
+apiRouter.post("/auth/login", async (req, res) => {
   console.log("Login attempt:", req.body.email);
   try {
     const supabase = getSupabase();
@@ -188,12 +192,12 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-app.get("/api/auth/profile", authenticateToken, (req: any, res) => {
+apiRouter.get("/auth/profile", authenticateToken, (req: any, res) => {
   res.json(req.user);
 });
 
 // 2. Contact Form
-app.post("/api/contact", async (req, res) => {
+apiRouter.post("/contact", async (req, res) => {
   console.log("Contact form submission:", req.body.email);
   try {
     const supabase = getSupabase();
@@ -207,7 +211,7 @@ app.post("/api/contact", async (req, res) => {
 });
 
 // 3. Newsletter
-app.post("/api/newsletter/subscribe", async (req, res) => {
+apiRouter.post("/newsletter/subscribe", async (req, res) => {
   try {
     const supabase = getSupabase();
     const { email } = NewsletterSchema.parse(req.body);
@@ -230,7 +234,7 @@ app.post("/api/newsletter/subscribe", async (req, res) => {
 });
 
 // 4. Quotes
-app.post("/api/quote", async (req, res) => {
+apiRouter.post("/quote", async (req, res) => {
   try {
     const supabase = getSupabase();
     const data = QuoteSchema.parse(req.body);
@@ -250,7 +254,7 @@ app.post("/api/quote", async (req, res) => {
 });
 
 // 5. Admin Routes
-app.get("/api/admin/contacts", authenticateToken, isAdmin, async (req, res) => {
+apiRouter.get("/admin/contacts", authenticateToken, isAdmin, async (req, res) => {
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase
@@ -264,7 +268,7 @@ app.get("/api/admin/contacts", authenticateToken, isAdmin, async (req, res) => {
   }
 });
 
-app.delete("/api/admin/contacts/:id", authenticateToken, isAdmin, async (req, res) => {
+apiRouter.delete("/admin/contacts/:id", authenticateToken, isAdmin, async (req, res) => {
   try {
     const supabase = getSupabase();
     const { error } = await supabase.from("contacts").delete().eq("id", req.params.id);
@@ -275,7 +279,7 @@ app.delete("/api/admin/contacts/:id", authenticateToken, isAdmin, async (req, re
   }
 });
 
-app.delete("/api/admin/users/:id", authenticateToken, isAdmin, async (req, res) => {
+apiRouter.delete("/admin/users/:id", authenticateToken, isAdmin, async (req, res) => {
   try {
     const supabase = getSupabase();
     // Prevent self-deletion
@@ -290,7 +294,7 @@ app.delete("/api/admin/users/:id", authenticateToken, isAdmin, async (req, res) 
   }
 });
 
-app.get("/api/admin/users", authenticateToken, isAdmin, async (req, res) => {
+apiRouter.get("/admin/users", authenticateToken, isAdmin, async (req, res) => {
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase
@@ -304,7 +308,7 @@ app.get("/api/admin/users", authenticateToken, isAdmin, async (req, res) => {
   }
 });
 
-app.get("/api/admin/quotes", authenticateToken, isAdmin, async (req, res) => {
+apiRouter.get("/admin/quotes", authenticateToken, isAdmin, async (req, res) => {
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase
@@ -318,7 +322,7 @@ app.get("/api/admin/quotes", authenticateToken, isAdmin, async (req, res) => {
   }
 });
 
-app.delete("/api/admin/quotes/:id", authenticateToken, isAdmin, async (req, res) => {
+apiRouter.delete("/admin/quotes/:id", authenticateToken, isAdmin, async (req, res) => {
   try {
     const supabase = getSupabase();
     const { error } = await supabase.from("quotes").delete().eq("id", req.params.id);
@@ -329,7 +333,7 @@ app.delete("/api/admin/quotes/:id", authenticateToken, isAdmin, async (req, res)
   }
 });
 
-app.get("/api/admin/newsletter", authenticateToken, isAdmin, async (req, res) => {
+apiRouter.get("/admin/newsletter", authenticateToken, isAdmin, async (req, res) => {
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase
@@ -343,7 +347,7 @@ app.get("/api/admin/newsletter", authenticateToken, isAdmin, async (req, res) =>
   }
 });
 
-app.delete("/api/admin/newsletter/:id", authenticateToken, isAdmin, async (req, res) => {
+apiRouter.delete("/admin/newsletter/:id", authenticateToken, isAdmin, async (req, res) => {
   try {
     const supabase = getSupabase();
     const { error } = await supabase.from("newsletter").delete().eq("id", req.params.id);
@@ -354,13 +358,15 @@ app.delete("/api/admin/newsletter/:id", authenticateToken, isAdmin, async (req, 
   }
 });
 
-app.get("/api/health", (req, res) => {
+apiRouter.get("/health", (req, res) => {
   res.json({ 
     status: "ok", 
     env: process.env.NODE_ENV || "development",
     time: new Date().toISOString()
   });
 });
+
+app.use("/api", apiRouter);
 
 // --- Frontend Integration ---
 async function testConnection() {
@@ -387,7 +393,7 @@ async function startServer() {
   await seedAdmin();
 
   // API 404 handler - catch missing API routes before they hit the SPA fallback
-  app.use("/api/*", (req, res) => {
+  app.all("/api/*", (req, res) => {
     res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
   });
 
@@ -410,4 +416,7 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error("CRITICAL: Failed to start server:", err);
+  process.exit(1);
+});

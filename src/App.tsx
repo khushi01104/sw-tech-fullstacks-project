@@ -17,7 +17,7 @@ const GOOGLE_MAPS_API_KEY =
   (globalThis as any).GOOGLE_MAPS_PLATFORM_KEY ||
   '';
 const HAS_VALID_MAPS_KEY = Boolean(GOOGLE_MAPS_API_KEY) && 
-                          GOOGLE_MAPS_API_KEY !== 'YOUR_API_KEY' && 
+                          GOOGLE_MAPS_API_KEY !== 'AIzaSyAgV3CYQBnvUz2paXfdzcPxB0CrpbPYRsQ' && 
                           GOOGLE_MAPS_API_KEY.length > 30 &&
                           GOOGLE_MAPS_API_KEY.startsWith('AIza');
 
