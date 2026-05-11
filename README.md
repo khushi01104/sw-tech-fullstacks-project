@@ -1,11 +1,20 @@
-<div align="center">
+# SW Technologies - Full Stack Application
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Professional web development solutions platform.
 
-  <h1>Built with AI Studio</h2>
+## Features
+- **User Authentication**: Register and Login system with JWT.
+- **Contact Form**: Functional contact submissions saved to Firestore.
+- **Newsletter**: Subscription system with duplicate check.
+- **Free Quote**: Detailed quote request modal and backend.
+- **Admin Panel**: Manage contacts, users, and quote requests.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## Admin Credentials
+- **Email**: `admin@swtech.com`
+- **Password**: `adminpassword123`
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
-
-</div>
+## Technical Stack
+- **Frontend**: React, Tailwind CSS, Motion, Lucide Icons.
+- **Backend**: Express.js, TypeScript.
+- **Database**: Firebase Firestore.
+- **Auth**: JWT & Bcrypt hashing.
